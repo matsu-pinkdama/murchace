@@ -1,0 +1,45 @@
+{% from "layout.html" import layout %}
+{% from "components/clock.html" import clock %}
+{% from "components/order-session.html" import order_session %}
+
+{% macro order(products, session) %}
+  {% call layout("新規注文 - murchace") %}
+    <div class="h-dvh flex flex-row">
+      <main class="w-1/2 lg:w-4/6 h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6 auto-cols-max auto-rows-min gap-2 py-2 pl-10 pr-6 overflow-y-auto">
+        {% for product in products %}
+          <figure
+            hx-post="/order/items"
+            hx-vals='{"product_id": {{ product.product_id }}}'
+            hx-target="#order-session"
+            class="flex flex-col border-4 rounded-md transition-colors ease-in-out active:bg-gray-100"
+          >
+            <img class="mx-auto w-full h-auto aspect-square" width="" height="" src={{ url_for('static', path=product.filename) }} alt={{ product.name }} />
+            <figcaption class="text-center truncate">{{ product.name }}</figcaption>
+            <div class="text-center">{{ product.price_str() }}</div>
+          </figure>
+        {% endfor %}
+      </main>
+      <aside class="w-1/2 lg:w-2/6 h-full flex flex-col p-4 justify-between">
+        <div class="flex flex-row py-2 items-center">
+          <div class="flex-grow flex flex-row justify-around">
+            <button class="text-center text-sm px-2 rounded bg-gray-300 hidden lg:inline-block" tabindex="0">
+              <a href="/" tabindex="-1">ホームに戻る</a>
+            </button>
+            <button
+              hx-delete="/order/items"
+              hx-target="#order-session"
+              class="text-xl text-center text-white px-2 rounded bg-red-600 hidden sm:inline-block"
+              tabindex="0"
+            >全消去</button>
+          </div>
+          <div class="text-xl flex flex-row gap-3 hidden md:inline-block">
+            {{ clock() }}
+          </div>
+        </div>
+        <div id="order-session" class="min-h-0 pt-2 flex flex-col">
+          {{ order_session(session) }}
+        </div>
+      </aside>
+    </div>
+  {% endcall %}
+{% endmacro %}

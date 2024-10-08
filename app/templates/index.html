@@ -1,20 +1,32 @@
-{% extends "layout.html" %}
+{% from "layout.html" import layout %}
 
-{% block title %}ホーム - murchace{% endblock %}
+{% macro index() %}
+{% call layout("ホーム - murchace") %}
+<div class="w-full h-dvh px-16 py-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
 
-{% block body %}
-  <div class="w-full h-dvh px-16 py-8 grid grid-cols-2 gap-12">
-    <div class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl">
-      <a hx-post="/orders" class="cursor-pointer">新しい注文</a>
-    </div>
-    <div class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl">
-      <a href="/placements" class="cursor-pointer">確定注文一覧</a>
-    </div>
-    <div class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl">
-      <a href="/ordered-products" class="cursor-pointer">商品編集（実装中）</a>
-    </div>
-    <div class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl">
-      <a class="cursor-not-allowed">設定（未実装）</a>
-    </div>
-  </div>
-{% endblock %}
+  <a href="/order"
+    class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl cursor-pointer">
+    <p>新しい注文</p>
+  </a>
+  <a href="/incoming-placements"
+    class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl cursor-pointer">
+    <p>確定注文一覧</p>
+  </a>
+  <a href="/wait-estimates"
+    class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl cursor-pointer">
+    <p>予測待ち時間</p>
+  </a>
+  <a href="/stat"
+    class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl cursor-pointer">
+    <p>統計情報</p>
+  </a>
+  <a href="/products"
+    class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl cursor-pointer">
+    <p>商品編集（実装中）</p>
+  </a>
+  <a class="flex items-center justify-center pt-4 text-4xl border-2 border-gray-500 rounded-2xl">
+    <p class="cursor-not-allowed">設定（未実装）</p>
+  </a>
+</div>
+{% endcall %}
+{% endmacro %}

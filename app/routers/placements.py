@@ -1,42 +1,73 @@
-from typing import Annotated
+import asyncio
+from typing import Annotated, AsyncGenerator, Literal
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, Request
+from fastapi.responses import HTMLResponse
+from sse_starlette.sse import EventSourceResponse
 
-from ..store import PlacementTable, select_placements
-from ..templates import templates
+from .. import templates
+from ..store import (
+    PlacementTable,
+    load_canceled_placements,
+    load_completed_placements,
+    load_incoming_placements,
+)
 
 router = APIRouter()
 
 
-@router.get("/placements")
-async def get_placements(
-    request: Request,
-    canceled: bool = False,
-    completed: bool = False,
-    hx_request: Annotated[str | None, Header()] = None,
+@router.get("/incoming-placements", response_class=HTMLResponse)
+async def get_incoming_placements(request: Request):
+    placements = await load_incoming_placements()
+    return HTMLResponse(templates.incoming_placements(request, placements))
+
+
+@router.get("/incoming-placements/stream", response_class=EventSourceResponse)
+async def incoming_placements_stream(
+    request: Request, accept: Annotated[Literal["text/event-stream"], Header()]
 ):
-    placements = await select_placements(canceled, completed)
-    return templates.TemplateResponse(
-        request,
-        "components/placements.html" if hx_request == "true" else "placements.html",
-        {"placements": placements, "canceled": canceled, "completed": completed},
-    )
+    return EventSourceResponse(_stream(request))
 
 
-@router.get("/placements/{placement_id}")
-async def get_placement(request: Request, placement_id: int):
-    if (placement := await PlacementTable.by_placement_id(placement_id)) is None:
-        raise HTTPException(404, f"Placement {placement_id} not found")
-    return templates.TemplateResponse(
-        request, "components/placement.html", {"placement": placement}
-    )
+async def _stream(request: Request) -> AsyncGenerator[dict[str, str], None]:
+    placements = await load_incoming_placements()
+    content = templates.components.incoming_placements(request, placements)
+    yield dict(data=content)
+    try:
+        while True:
+            async with PlacementTable.modified:
+                await PlacementTable.modified.wait()
+                placements = await load_incoming_placements()
+                content = templates.components.incoming_placements(request, placements)
+                yield dict(data=content)
+    except asyncio.CancelledError:
+        yield dict(event="shutdown", data="")
+    finally:
+        yield dict(event="shutdown", data="")
 
 
-@router.post("/placements/{placement_id}")
+@router.get("/canceled-placements", response_class=HTMLResponse)
+async def get_canceled_placements(request: Request):
+    placements = await load_canceled_placements()
+    return HTMLResponse(templates.canceled_placements(request, placements))
+
+
+@router.get("/completed-placements", response_class=HTMLResponse)
+async def get_completed_placements(request: Request):
+    placements = await load_completed_placements()
+    return HTMLResponse(templates.completed_placements(request, placements))
+
+
+@router.post("/incoming-placements/{placement_id}")
+async def reset_placement(placement_id: int):
+    await PlacementTable.reset(placement_id)
+
+
+@router.post("/completed-placements/{placement_id}")
 async def complete_placement(placement_id: int):
     await PlacementTable.complete(placement_id)
 
 
-@router.delete("/placements/{placement_id}")
+@router.post("/canceled-placements/{placement_id}")
 async def cancel_placement(placement_id: int):
     await PlacementTable.cancel(placement_id)

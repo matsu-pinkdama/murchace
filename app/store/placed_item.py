@@ -1,15 +1,25 @@
+from typing import Annotated
+
 import sqlmodel
 from databases import Database
+
+from ._helper import _colname
+from .placement import Placement
+from .product import Product
 
 
 class PlacedItem(sqlmodel.SQLModel, table=True):
     # NOTE: there are no Pydantic ways to set the generated table's name, as per https://github.com/fastapi/sqlmodel/issues/159
-    __tablename__ = "placed_items"  # type: ignore[reportAssignmentType]
+    __tablename__ = "placed_items"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = sqlmodel.Field(default=None, primary_key=True)
-    placement_id: int
+    placement_id: Annotated[
+        int, sqlmodel.Field(foreign_key=_colname(sqlmodel.col(Placement.placement_id)))
+    ]
     item_no: int
-    product_id: int
+    product_id: Annotated[
+        int, sqlmodel.Field(foreign_key=_colname(sqlmodel.col(Product.product_id)))
+    ]
 
 
 class Table:

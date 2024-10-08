@@ -1,12 +1,14 @@
 from typing import Annotated
+from uuid import UUID, uuid4
 
-from databases import Database
+import pydantic
 import sqlmodel
+from databases import Database
 
 
 class Product(sqlmodel.SQLModel, table=True):
     # NOTE: there are no Pydantic ways to set the generated table's name, as per https://github.com/fastapi/sqlmodel/issues/159
-    __tablename__ = "products"  # type: ignore[reportAssignmentType]
+    __tablename__ = "products"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = sqlmodel.Field(default=None, primary_key=True)
     product_id: int
@@ -22,11 +24,48 @@ class Product(sqlmodel.SQLModel, table=True):
 
     @staticmethod
     def to_price_str(price: int) -> str:
-        s = str(price)
-        rt = s[:(len(s)-1)%3+1]
-        for i in range((len(s)-1)%3+1, len(s), 3):
-            rt += ',' + s[i:i+3]
-        return rt
+        return f"¥{price:,}"
+
+
+class OrderSession(pydantic.BaseModel):
+    class CountedProduct(pydantic.BaseModel):
+        name: str
+        price: str
+        count: int = pydantic.Field(default=1)
+
+    items: dict[UUID, Product] = pydantic.Field(default_factory=dict)
+    counted_products: dict[int, CountedProduct] = pydantic.Field(default_factory=dict)
+    total_count: int = pydantic.Field(default=0)
+    total_price: int = pydantic.Field(default=0)
+
+    def clear(self):
+        self.total_count = 0
+        self.total_price = 0
+        self.items = {}
+        self.counted_products = {}
+
+    def total_price_str(self) -> str:
+        return Product.to_price_str(self.total_price)
+
+    def add(self, p: Product):
+        self.total_count += 1
+        self.total_price += p.price
+        self.items[uuid4()] = p
+        if p.product_id in self.counted_products:
+            self.counted_products[p.product_id].count += 1
+        else:
+            counted_product = self.CountedProduct(name=p.name, price=p.price_str())
+            self.counted_products[p.product_id] = counted_product
+
+    def delete(self, item_id: UUID):
+        if item_id in self.items:
+            self.total_count -= 1
+            product = self.items.pop(item_id)
+            self.total_price -= product.price
+            if self.counted_products[product.product_id].count == 1:
+                self.counted_products.pop(product.product_id)
+            else:
+                self.counted_products[product.product_id].count -= 1
 
 
 class Table:
